@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.pixelpdf.app.data.model.DraftSession
 import com.pixelpdf.app.data.model.GeneratedPdfFile
 import com.pixelpdf.app.ui.viewmodel.MainViewModel
 import com.pixelpdf.app.ui.viewmodel.Screen
@@ -37,7 +39,8 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     viewModel: MainViewModel,
-    recentPdfs: List<GeneratedPdfFile>
+    recentPdfs: List<GeneratedPdfFile>,
+    draftSession: DraftSession? = null
 ) {
     val context = LocalContext.current
 
@@ -142,6 +145,93 @@ fun HomeScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // Resume In-Progress Draft Banner
+            if (draftSession != null && draftSession.images.isNotEmpty()) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.7f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.tertiary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Restore,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onTertiary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Saved Draft Available",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Text(
+                                        text = "${draftSession.images.size} images from your previous session",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { viewModel.discardDraft() }) {
+                                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = { viewModel.resumeDraft() },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary
+                                    )
+                                ) {
+                                    Text(
+                                        "Resume Draft",
+                                        color = MaterialTheme.colorScheme.onTertiary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.onTertiary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 // Hero Banner

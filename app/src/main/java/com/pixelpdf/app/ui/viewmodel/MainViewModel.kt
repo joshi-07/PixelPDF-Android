@@ -7,9 +7,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pixelpdf.app.data.model.ConversionProgress
 import com.pixelpdf.app.data.model.ConversionState
+import com.pixelpdf.app.data.model.DraftSession
 import com.pixelpdf.app.data.model.GeneratedPdfFile
 import com.pixelpdf.app.data.model.ImageItem
 import com.pixelpdf.app.data.model.PdfSettings
+import com.pixelpdf.app.data.repository.DraftManager
 import com.pixelpdf.app.data.repository.HistoryManager
 import com.pixelpdf.app.data.repository.ImageProcessor
 import com.pixelpdf.app.data.repository.PdfEngine
@@ -35,6 +37,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val imageProcessor = ImageProcessor(application)
     private val pdfEngine = PdfEngine(application, imageProcessor)
     private val historyManager = HistoryManager(application)
+    private val draftManager = DraftManager(application)
 
     private val _currentScreen = MutableStateFlow<Screen>(Screen.Home)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
@@ -44,6 +47,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _settings = MutableStateFlow(PdfSettings())
     val settings: StateFlow<PdfSettings> = _settings.asStateFlow()
+
+    private val _draftSession = MutableStateFlow<DraftSession?>(null)
+    val draftSession: StateFlow<DraftSession?> = _draftSession.asStateFlow()
 
     private val _conversionState = MutableStateFlow<ConversionState>(ConversionState.Idle)
     val conversionState: StateFlow<ConversionState> = _conversionState.asStateFlow()
@@ -58,6 +64,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         loadHistory()
+        loadDraft()
     }
 
     fun navigateTo(screen: Screen) {
@@ -70,12 +77,54 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadDraft() {
+        viewModelScope.launch {
+            _draftSession.value = draftManager.getDraft()
+        }
+    }
+
+    fun resumeDraft() {
+        val draft = _draftSession.value ?: return
+        _selectedImages.value = draft.images
+        _settings.value = draft.settings
+        _currentScreen.value = Screen.Editor
+    }
+
+    fun discardDraft() {
+        viewModelScope.launch {
+            draftManager.clearDraft()
+            _draftSession.value = null
+        }
+    }
+
+    private fun triggerDraftAutoSave() {
+        viewModelScope.launch {
+            val imgs = _selectedImages.value
+            if (imgs.isNotEmpty()) {
+                draftManager.saveDraft(imgs, _settings.value)
+                _draftSession.value = draftManager.getDraft()
+            } else {
+                draftManager.clearDraft()
+                _draftSession.value = null
+            }
+        }
+    }
+
     fun addImages(uris: List<Uri>) {
         if (uris.isEmpty()) return
+        uris.forEach { uri ->
+            try {
+                getApplication<Application>().contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: Exception) {}
+        }
         viewModelScope.launch {
             try {
                 val newItems = imageProcessor.getImageItemsFromUris(uris)
                 _selectedImages.update { it + newItems }
+                triggerDraftAutoSave()
                 if (_currentScreen.value == Screen.Home) {
                     _currentScreen.value = Screen.Editor
                 }
@@ -134,6 +183,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 list
             }
         }
+        triggerDraftAutoSave()
     }
 
     fun rotateImage(id: String) {
@@ -146,6 +196,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+        triggerDraftAutoSave()
     }
 
     fun removeImage(id: String) {
@@ -156,15 +207,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             updated
         }
+        triggerDraftAutoSave()
     }
 
     fun clearAllImages() {
         _selectedImages.value = emptyList()
+        discardDraft()
         _currentScreen.value = Screen.Home
     }
 
     fun updateSettings(newSettings: PdfSettings) {
         _settings.value = newSettings
+        triggerDraftAutoSave()
     }
 
     fun startConversion() {
@@ -189,6 +243,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (generated.isNotEmpty()) {
                     historyManager.addRecords(generated)
                     loadHistory()
+                    discardDraft()
                     _activePreviewPdf.value = generated.first()
                     _conversionState.value = ConversionState.Success(generated)
                     _currentScreen.value = Screen.Preview

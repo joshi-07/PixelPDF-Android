@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v1.1.0.apk">
-    <img src="https://img.shields.io/badge/📥_Download_Direct_APK-PixelPDF_v1.1.0-2EA44F?style=for-the-badge&logo=android&logoColor=white" alt="Download APK" height="48" />
+  <a href="https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v1.2.0.apk">
+    <img src="https://img.shields.io/badge/📥_Download_Direct_APK-PixelPDF_v1.2.0-2EA44F?style=for-the-badge&logo=android&logoColor=white" alt="Download APK" height="48" />
   </a>
 </p>
 
@@ -25,7 +25,7 @@
 
 Anyone visiting this repository can download and install the standalone Android APK directly without compiling from source:
 
-👉 **[Download PixelPDF v1.1.0 APK (Direct Download)](https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v1.1.0.apk)**
+👉 **[Download PixelPDF v1.2.0 APK (Direct Download)](https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v1.2.0.apk)**
 
 *Compatible with all Android devices running Android 8.0 (Oreo / API 26) through Android 15.*
 
@@ -54,6 +54,10 @@ Anyone visiting this repository can download and install the standalone Android 
 - **Visual Image Editor:**
   - Drag-free fluid card controls (Move left, Move right, Rotate 90°, Delete).
   - **Full Image Preview Modal:** Tap any card to inspect full image dimensions, aspect ratio, and rotation angle before converting.
+- **🔄 Persistent Draft Session & Auto-Recovery (New in v1.2.0):**
+  - If you close the app or switch tasks while arranging a big batch of photos, PixelPDF automatically saves your in-progress selection, exact display ordering, and PDF settings.
+  - Reopening the app surfaces an immediate **"Resume Draft"** card to continue right where you left off.
+  - Automatically acquires persistable URI permissions on supported file providers.
 - **Built-in PDF Previewer:** Native page-by-page PDF viewer powered by Android's `PdfRenderer`.
 - **Live Progress Dialog:** Real-time percentage indicator, current image name, and safe coroutine cancellation.
 - **Persistent Conversion History:** Re-open, re-share, or export previous conversions anytime.

@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
                     val currentScreen by viewModel.currentScreen.collectAsState()
                     val selectedImages by viewModel.selectedImages.collectAsState()
                     val settings by viewModel.settings.collectAsState()
+                    val draftSession by viewModel.draftSession.collectAsState()
                     val conversionState by viewModel.conversionState.collectAsState()
                     val history by viewModel.history.collectAsState()
                     val activePreviewPdf by viewModel.activePreviewPdf.collectAsState()
@@ -60,7 +61,8 @@ class MainActivity : ComponentActivity() {
                         Screen.Home -> {
                             HomeScreen(
                                 viewModel = viewModel,
-                                recentPdfs = history
+                                recentPdfs = history,
+                                draftSession = draftSession
                             )
                         }
                         Screen.Editor -> {
