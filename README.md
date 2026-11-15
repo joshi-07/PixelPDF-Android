@@ -22,11 +22,15 @@
 
 ---
 
-## 🚀 Direct APK Download
+## 🚀 Direct APK Download (Ultra-Fast 1.65 MB)
 
 Anyone visiting this repository can download and install the standalone Android APK directly without compiling from source:
 
-👉 **[Download PixelPDF v2.0.0 APK (Direct Download)](https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v2.0.0.apk)**
+👉 **[Download PixelPDF v2.0.0 APK (Direct Download — 1.65 MB)](https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v2.0.0.apk)**
+
+📦 **[Download PixelPDF v2.0.0 ZIP (ZIP Archive — 1.46 MB)](https://github.com/joshi-07/PixelPDF-Android/releases/latest/download/PixelPDF-v2.0.0-apk.zip)** *(Recommended if your mobile browser blocks direct `.apk` downloads)*
+
+> **Mobile Tip:** If downloading inside LinkedIn, Instagram, or Reddit in-app browser, tap the **three dots (`...`)** in the upper-right corner and select **"Open in Chrome / Browser"** to ensure your download completes smoothly.
 
 *Compatible with all Android devices running Android 8.0 (Oreo / API 26) through Android 15.*
 
