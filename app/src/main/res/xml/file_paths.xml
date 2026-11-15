@@ -2,5 +2,6 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <files-path name="pdf_files" path="pdfs/" />
     <cache-path name="pdf_cache" path="pdfs/" />
+    <cache-path name="camera_photos" path="camera/" />
     <external-files-path name="external_pdf_files" path="pdfs/" />
 </paths>

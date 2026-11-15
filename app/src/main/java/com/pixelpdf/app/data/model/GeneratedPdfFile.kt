@@ -9,7 +9,8 @@ data class GeneratedPdfFile(
     val filePath: String,
     val sizeBytes: Long,
     val pageCount: Int,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isFavorite: Boolean = false
 ) {
     val formattedSize: String
         get() {

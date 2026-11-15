@@ -1,10 +1,8 @@
 package com.pixelpdf.app
 
-import com.pixelpdf.app.data.model.ImageItem
-import com.pixelpdf.app.data.model.PageMargin
-import com.pixelpdf.app.data.model.PageSize
-import com.pixelpdf.app.data.model.PdfSettings
+import com.pixelpdf.app.data.model.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -60,5 +58,47 @@ class PdfSettingsTest {
         assertEquals("PixelPDF_Export", settings.fileName)
         assertEquals(PageSize.A4, settings.pageSize)
         assertEquals(PageMargin.NONE, settings.margin)
+        assertEquals(PageNumberStyle.CURRENT_OF_TOTAL, settings.pageNumberStyle)
+        assertEquals(PageNumberPosition.BOTTOM_CENTER, settings.pageNumberPosition)
+        assertEquals(150, settings.customDpi)
+        assertFalse(settings.insertBlankPages)
+    }
+
+    @Test
+    fun testWatermarkAndMetadataSettings() {
+        val settings = PdfSettings(
+            watermarkText = "CONFIDENTIAL",
+            watermarkOpacity = 0.35f,
+            documentTitle = "Q4 Report",
+            documentAuthor = "PixelPDF",
+            insertBlankPages = true,
+            imageRoundedCorners = 12f
+        )
+        assertEquals("CONFIDENTIAL", settings.watermarkText)
+        assertEquals(0.35f, settings.watermarkOpacity, 0.001f)
+        assertEquals("Q4 Report", settings.documentTitle)
+        assertEquals("PixelPDF", settings.documentAuthor)
+        assertTrue(settings.insertBlankPages)
+        assertEquals(12f, settings.imageRoundedCorners, 0.001f)
+    }
+
+    @Test
+    fun testImageFilterEnums() {
+        assertEquals("Original", ImageFilter.ORIGINAL.displayName)
+        assertEquals("Doc Clean", ImageFilter.DOCUMENT_CLEAN.displayName)
+        assertEquals("Black & White", ImageFilter.GRAYSCALE.displayName)
+        assertEquals("High Contrast", ImageFilter.HIGH_CONTRAST.displayName)
+        assertEquals("Sepia", ImageFilter.SEPIA.displayName)
+        assertEquals(9, ImageFilter.values().size)
+    }
+
+    @Test
+    fun testAppThemeColors() {
+        val themes = AppThemeColor.values()
+        assertEquals(4, themes.size)
+        assertTrue(themes.contains(AppThemeColor.SAPPHIRE_BLUE))
+        assertTrue(themes.contains(AppThemeColor.EMERALD_GREEN))
+        assertTrue(themes.contains(AppThemeColor.SUNSET_ORANGE))
+        assertTrue(themes.contains(AppThemeColor.ROYAL_VIOLET))
     }
 }

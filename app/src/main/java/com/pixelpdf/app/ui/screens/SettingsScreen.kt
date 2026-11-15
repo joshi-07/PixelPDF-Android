@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.pixelpdf.app.data.model.*
 import com.pixelpdf.app.ui.viewmodel.MainViewModel
 import com.pixelpdf.app.ui.viewmodel.Screen
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,8 +40,36 @@ fun SettingsScreen(
     var selectedOutputMode by remember { mutableStateOf(currentSettings.outputMode) }
     var imagesPerPdf by remember { mutableStateOf(currentSettings.imagesPerPdf) }
     var includePageNumbers by remember { mutableStateOf(currentSettings.includePageNumbers) }
+    var pageNumberStyle by remember { mutableStateOf(currentSettings.pageNumberStyle) }
+    var pageNumberPosition by remember { mutableStateOf(currentSettings.pageNumberPosition) }
     var includeBorders by remember { mutableStateOf(currentSettings.includeBorders) }
     var backgroundColorHex by remember { mutableStateOf(currentSettings.backgroundColorHex) }
+
+    // Watermark
+    var watermarkText by remember { mutableStateOf(currentSettings.watermarkText) }
+    var watermarkOpacity by remember { mutableStateOf(currentSettings.watermarkOpacity) }
+    var watermarkColorHex by remember { mutableStateOf(currentSettings.watermarkColorHex) }
+    var watermarkAngle by remember { mutableStateOf(currentSettings.watermarkAngle) }
+    var watermarkFontSize by remember { mutableStateOf(currentSettings.watermarkFontSize) }
+
+    // Header & Footer
+    var headerText by remember { mutableStateOf(currentSettings.headerText) }
+    var headerAlignment by remember { mutableStateOf(currentSettings.headerAlignment) }
+    var footerText by remember { mutableStateOf(currentSettings.footerText) }
+    var headerFooterFontSize by remember { mutableStateOf(currentSettings.headerFooterFontSize) }
+
+    // Styling & Duplex
+    var imageRoundedCorners by remember { mutableStateOf(currentSettings.imageRoundedCorners) }
+    var insertBlankPages by remember { mutableStateOf(currentSettings.insertBlankPages) }
+    var customDpi by remember { mutableStateOf(currentSettings.customDpi) }
+
+    // Metadata
+    var documentTitle by remember { mutableStateOf(currentSettings.documentTitle) }
+    var documentAuthor by remember { mutableStateOf(currentSettings.documentAuthor) }
+    var documentSubject by remember { mutableStateOf(currentSettings.documentSubject) }
+    var documentKeywords by remember { mutableStateOf(currentSettings.documentKeywords) }
+
+    val activeTheme by viewModel.appThemeColor.collectAsState()
 
     fun saveAndExit() {
         viewModel.updateSettings(
@@ -53,11 +83,32 @@ fun SettingsScreen(
                 outputMode = selectedOutputMode,
                 imagesPerPdf = imagesPerPdf,
                 includePageNumbers = includePageNumbers,
+                pageNumberStyle = pageNumberStyle,
+                pageNumberPosition = pageNumberPosition,
                 includeBorders = includeBorders,
-                backgroundColorHex = backgroundColorHex
+                backgroundColorHex = backgroundColorHex,
+
+                watermarkText = watermarkText.trim(),
+                watermarkOpacity = watermarkOpacity,
+                watermarkColorHex = watermarkColorHex,
+                watermarkAngle = watermarkAngle,
+                watermarkFontSize = watermarkFontSize,
+
+                headerText = headerText.trim(),
+                headerAlignment = headerAlignment,
+                footerText = footerText.trim(),
+                headerFooterFontSize = headerFooterFontSize,
+
+                imageRoundedCorners = imageRoundedCorners,
+                insertBlankPages = insertBlankPages,
+                customDpi = customDpi,
+
+                documentTitle = documentTitle.trim(),
+                documentAuthor = documentAuthor.trim(),
+                documentSubject = documentSubject.trim(),
+                documentKeywords = documentKeywords.trim()
             )
         )
-        // If there are images selected, go back to editor; otherwise home
         if (viewModel.selectedImages.value.isNotEmpty()) {
             viewModel.navigateTo(Screen.Editor)
         } else {
@@ -70,7 +121,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "PDF Settings",
+                        text = "PDF & Document Settings",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 },
@@ -81,7 +132,7 @@ fun SettingsScreen(
                 },
                 actions = {
                     TextButton(onClick = { saveAndExit() }) {
-                        Text("Apply", fontWeight = FontWeight.Bold)
+                        Text("Save & Apply", fontWeight = FontWeight.Bold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -94,29 +145,51 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item { Spacer(modifier = Modifier.height(2.dp)) }
 
-            // File Name Section
+            // Theme Accent Color (Feature 50)
+            item {
+                SectionCard(title = "App Color Accent Theme") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AppThemeColor.values().forEach { theme ->
+                                FilterChip(
+                                    selected = activeTheme == theme,
+                                    onClick = { viewModel.setAppThemeColor(theme) },
+                                    label = { Text(theme.displayName) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // PDF File Name
             item {
                 SectionCard(title = "PDF File Name") {
                     OutlinedTextField(
                         value = fileName,
                         onValueChange = { fileName = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("e.g. Invoices_Nov2026") },
+                        placeholder = { Text("e.g. Scanned_Invoice_2026") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
                 }
             }
 
-            // Page Size Section
+            // Page Size & DPI
             item {
-                SectionCard(title = "Page Size") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionCard(title = "Page Geometry & Resolution") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Page Dimensions:", style = MaterialTheme.typography.labelMedium)
                         PageSize.values().forEach { size ->
                             OptionRadioItem(
                                 title = size.displayName,
@@ -124,33 +197,52 @@ fun SettingsScreen(
                                 onClick = { selectedPageSize = size }
                             )
                         }
-                    }
-                }
-            }
 
-            // Orientation Section
-            item {
-                SectionCard(title = "Orientation") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        PageOrientation.values().forEach { orient ->
-                            FilterChip(
-                                selected = selectedOrientation == orient,
-                                onClick = { selectedOrientation = orient },
-                                label = { Text(orient.displayName) },
-                                modifier = Modifier.weight(1f)
-                            )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        Text("Print Resolution (DPI):", style = MaterialTheme.typography.labelMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                72 to "72 DPI (Web)",
+                                150 to "150 DPI (Std)",
+                                300 to "300 DPI (Print)"
+                            ).forEach { (dpi, label) ->
+                                FilterChip(
+                                    selected = customDpi == dpi,
+                                    onClick = { customDpi = dpi },
+                                    label = { Text(label) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Margins Section
+            // Orientation & Margins
             item {
-                SectionCard(title = "Page Margins") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionCard(title = "Page Orientation & Margins") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Orientation:", style = MaterialTheme.typography.labelMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            PageOrientation.values().forEach { orient ->
+                                FilterChip(
+                                    selected = selectedOrientation == orient,
+                                    onClick = { selectedOrientation = orient },
+                                    label = { Text(orient.displayName) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Margins:", style = MaterialTheme.typography.labelMedium)
                         PageMargin.values().forEach { margin ->
                             OptionRadioItem(
                                 title = margin.displayName,
@@ -162,10 +254,11 @@ fun SettingsScreen(
                 }
             }
 
-            // Image Scaling
+            // Image Scaling & Quality
             item {
-                SectionCard(title = "Image Scaling") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionCard(title = "Image Scaling & Compression") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Scaling:", style = MaterialTheme.typography.labelMedium)
                         ImageScaleType.values().forEach { scale ->
                             OptionRadioItem(
                                 title = scale.displayName,
@@ -173,14 +266,9 @@ fun SettingsScreen(
                                 onClick = { selectedScaleType = scale }
                             )
                         }
-                    }
-                }
-            }
 
-            // Image Compression / Quality
-            item {
-                SectionCard(title = "Image Quality & Compression") {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Quality & Compression:", style = MaterialTheme.typography.labelMedium)
                         ImageQuality.values().forEach { q ->
                             OptionRadioItem(
                                 title = q.displayName,
@@ -188,6 +276,236 @@ fun SettingsScreen(
                                 onClick = { selectedQuality = q }
                             )
                         }
+                    }
+                }
+            }
+
+            // Custom Text Watermark (Features 14-17)
+            item {
+                SectionCard(title = "Custom Text Watermark") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = watermarkText,
+                            onValueChange = { watermarkText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("e.g. CONFIDENTIAL, DRAFT, SAMPLE") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        if (watermarkText.isNotEmpty()) {
+                            Text(
+                                text = "Opacity: ${(watermarkOpacity * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = watermarkOpacity,
+                                onValueChange = { watermarkOpacity = it },
+                                valueRange = 0.10f..0.80f
+                            )
+
+                            Text("Angle:", style = MaterialTheme.typography.labelMedium)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(0f to "0°", 30f to "30°", 45f to "45°", 60f to "60°", 90f to "90°").forEach { (angle, lbl) ->
+                                    FilterChip(
+                                        selected = watermarkAngle == angle,
+                                        onClick = { watermarkAngle = angle },
+                                        label = { Text(lbl) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+
+                            Text("Color:", style = MaterialTheme.typography.labelMedium)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf(
+                                    0xFF888888 to "Gray",
+                                    0xFFDC2626 to "Red Alert",
+                                    0xFF2563EB to "Blue Brand",
+                                    0xFF111827 to "Dark"
+                                ).forEach { (hex, colorName) ->
+                                    FilterChip(
+                                        selected = watermarkColorHex == hex,
+                                        onClick = { watermarkColorHex = hex },
+                                        label = { Text(colorName) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Running Headers & Footers (Features 18-20)
+            item {
+                SectionCard(title = "Running Headers & Footers") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = headerText,
+                            onValueChange = { headerText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Header text (e.g. Company Report 2026)") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            TextAlignment.values().forEach { align ->
+                                FilterChip(
+                                    selected = headerAlignment == align,
+                                    onClick = { headerAlignment = align },
+                                    label = { Text(align.displayName) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = footerText,
+                            onValueChange = { footerText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Footer text (e.g. Strictly Confidential)") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                }
+            }
+
+            // Page Numbering (Features 21-22)
+            item {
+                SectionCard(title = "Page Numbering") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Print Page Numbers", style = MaterialTheme.typography.bodyMedium)
+                            Switch(
+                                checked = includePageNumbers,
+                                onCheckedChange = { includePageNumbers = it }
+                            )
+                        }
+
+                        if (includePageNumbers) {
+                            Text("Style:", style = MaterialTheme.typography.labelMedium)
+                            PageNumberStyle.values().forEach { st ->
+                                OptionRadioItem(
+                                    title = st.displayName,
+                                    isSelected = pageNumberStyle == st,
+                                    onClick = { pageNumberStyle = st }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Position:", style = MaterialTheme.typography.labelMedium)
+                            PageNumberPosition.values().forEach { pos ->
+                                OptionRadioItem(
+                                    title = pos.displayName,
+                                    isSelected = pageNumberPosition == pos,
+                                    onClick = { pageNumberPosition = pos }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Stylized Layout & Duplex Blank Pages (Features 23-25)
+            item {
+                SectionCard(title = "Page Borders & Duplex Layout") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Draw Page Border", style = MaterialTheme.typography.bodyMedium)
+                            Switch(
+                                checked = includeBorders,
+                                onCheckedChange = { includeBorders = it }
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Insert Blank Pages (Duplex)", style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    "Adds blank spacers for two-sided booklet printing",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = insertBlankPages,
+                                onCheckedChange = { insertBlankPages = it }
+                            )
+                        }
+
+                        Text(
+                            text = "Image Corner Rounding: ${imageRoundedCorners.toInt()} pt",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = imageRoundedCorners,
+                            onValueChange = { imageRoundedCorners = it },
+                            valueRange = 0f..28f
+                        )
+                    }
+                }
+            }
+
+            // PDF Document Metadata (Features 27-30)
+            item {
+                SectionCard(title = "PDF Document Metadata") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = documentTitle,
+                            onValueChange = { documentTitle = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Document Title") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = documentAuthor,
+                            onValueChange = { documentAuthor = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Author / Organization") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = documentSubject,
+                            onValueChange = { documentSubject = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Subject / Purpose") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = documentKeywords,
+                            onValueChange = { documentKeywords = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Keywords (comma separated)") },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
                     }
                 }
             }
@@ -206,118 +524,34 @@ fun SettingsScreen(
 
                         if (selectedOutputMode == OutputMode.SPLIT_BY_COUNT) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Images per PDF:", style = MaterialTheme.typography.bodyMedium)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = { if (imagesPerPdf > 1) imagesPerPdf-- },
-                                        enabled = imagesPerPdf > 1
-                                    ) {
-                                        Text("-", style = MaterialTheme.typography.titleLarge)
-                                    }
-                                    Text(
-                                        text = "$imagesPerPdf",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        modifier = Modifier.padding(horizontal = 12.dp)
-                                    )
-                                    IconButton(onClick = { imagesPerPdf++ }) {
-                                        Text("+", style = MaterialTheme.typography.titleLarge)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Additional Customizations
-            item {
-                SectionCard(title = "Extra Formatting") {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Page Numbering", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                                Text("Print '1 / N' footer at the bottom", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(
-                                checked = includePageNumbers,
-                                onCheckedChange = { includePageNumbers = it }
+                            Text(
+                                text = "Images per PDF: $imagesPerPdf",
+                                style = MaterialTheme.typography.bodyMedium
                             )
-                        }
-
-                        HorizontalDivider()
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Page Borders", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                                Text("Draw a subtle border outline around each image", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(
-                                checked = includeBorders,
-                                onCheckedChange = { includeBorders = it }
+                            Slider(
+                                value = imagesPerPdf.toFloat(),
+                                onValueChange = { imagesPerPdf = it.toInt() },
+                                valueRange = 1f..50f,
+                                steps = 49
                             )
-                        }
-
-                        HorizontalDivider()
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Page Background", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                val colors = listOf(
-                                    0xFFFFFFFF to "White",
-                                    0xFFF8FAFC to "Slate",
-                                    0xFFFFFBEB to "Cream",
-                                    0xFF0F172A to "Dark"
-                                )
-                                colors.forEach { (hex, name) ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(hex))
-                                            .border(
-                                                width = if (backgroundColorHex == hex) 3.dp else 1.dp,
-                                                color = if (backgroundColorHex == hex) MaterialTheme.colorScheme.primary else Color.LightGray,
-                                                shape = CircleShape
-                                            )
-                                            .clickable { backgroundColorHex = hex },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (backgroundColorHex == hex) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = name,
-                                                tint = if (hex == 0xFF0F172A) Color.White else Color.Black,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
                 }
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { saveAndExit() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Apply & Save Settings")
+                }
             }
+
+            item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
 }
@@ -335,13 +569,17 @@ fun SectionCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             content()
         }
     }
@@ -356,9 +594,9 @@ fun OptionRadioItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() }
-            .padding(vertical = 6.dp, horizontal = 4.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(

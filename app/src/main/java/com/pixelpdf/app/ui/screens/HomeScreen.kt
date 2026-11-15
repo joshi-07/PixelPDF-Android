@@ -5,6 +5,9 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,7 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +34,8 @@ import com.pixelpdf.app.data.model.DraftSession
 import com.pixelpdf.app.data.model.GeneratedPdfFile
 import com.pixelpdf.app.ui.viewmodel.MainViewModel
 import com.pixelpdf.app.ui.viewmodel.Screen
+import com.pixelpdf.app.ui.viewmodel.StorageStats
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,6 +48,23 @@ fun HomeScreen(
     draftSession: DraftSession? = null
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var storageStats by remember { mutableStateOf<StorageStats?>(null) }
+    var isCleaningCache by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        storageStats = viewModel.getStorageStats()
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            viewModel.handleCameraCaptureSuccess()
+            Toast.makeText(context, "Photo scanned & added!", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
@@ -78,6 +100,15 @@ fun HomeScreen(
         }
     }
 
+    val launchCamera = {
+        try {
+            val uri = viewModel.createCameraTempUri()
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Cannot open camera: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -85,7 +116,7 @@ fun HomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(
                                     Brush.linearGradient(
@@ -101,7 +132,7 @@ fun HomeScreen(
                                 imageVector = Icons.Default.PictureAsPdf,
                                 contentDescription = "PixelPDF",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -111,9 +142,9 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "Native Image to PDF Converter",
+                                text = "v2.0 • 100% Offline & Private",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -143,12 +174,12 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Resume In-Progress Draft Banner
             if (draftSession != null && draftSession.images.isNotEmpty()) {
                 item {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -232,9 +263,8 @@ fun HomeScreen(
                 }
             }
 
+            // Hero Banner & Quick Actions
             item {
-                Spacer(modifier = Modifier.height(8.dp))
-                // Hero Banner
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -246,12 +276,12 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
+                            .padding(22.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(60.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
@@ -260,11 +290,11 @@ fun HomeScreen(
                                 imageVector = Icons.Default.AddPhotoAlternate,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(30.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
                             text = "Convert Images to PDF",
@@ -272,27 +302,27 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "100% On-Device & Private. Select single or batch images to convert.",
+                            text = "Batch convert, watermark, enhance & organize documents 100% on-device.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(18.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
                                 onClick = { launchPicker() },
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                    .weight(1.2f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 )
@@ -300,37 +330,31 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.AddPhotoAlternate,
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Select Photos",
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
 
-                            OutlinedButton(
-                                onClick = {
-                                    try {
-                                        contentPickerLauncher.launch("image/*")
-                                    } catch (e: Exception) {
-                                        launchPicker()
-                                    }
-                                },
+                            FilledTonalButton(
+                                onClick = { launchCamera() },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(52.dp),
-                                shape = RoundedCornerShape(16.dp)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.FolderOpen,
+                                    imageVector = Icons.Default.CameraAlt,
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Browse Files",
-                                    style = MaterialTheme.typography.labelLarge
+                                    text = "Scan Doc",
+                                    style = MaterialTheme.typography.labelMedium
                                 )
                             }
                         }
@@ -338,7 +362,7 @@ fun HomeScreen(
                 }
             }
 
-            // Quick Conversion Presets
+            // Quick Presets
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
@@ -372,7 +396,7 @@ fun HomeScreen(
                         )
                         PresetCard(
                             title = "Compact Share",
-                            subtitle = "Optimized size",
+                            subtitle = "Small file size",
                             icon = Icons.Default.Compress,
                             modifier = Modifier.weight(1f),
                             onClick = {
@@ -384,24 +408,79 @@ fun HomeScreen(
                 }
             }
 
-            // Quick Feature Highlights
+            // Storage & Cache Breakdown Card (Feature 49, UI 9)
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FeatureChip(
-                        icon = Icons.Outlined.Security,
-                        title = "100% Offline",
-                        subtitle = "Zero Data Upload",
-                        modifier = Modifier.weight(1f)
-                    )
-                    FeatureChip(
-                        icon = Icons.Outlined.Tune,
-                        title = "Full Tuning",
-                        subtitle = "A4/Letter & Margins",
-                        modifier = Modifier.weight(1f)
-                    )
+                storageStats?.let { stats ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.PieChart,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Device Storage Usage",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                }
+
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            isCleaningCache = true
+                                            val freed = viewModel.cleanTempCache()
+                                            storageStats = viewModel.getStorageStats()
+                                            isCleaningCache = false
+                                            val freedMb = String.format(Locale.US, "%.1f MB", freed / (1024f * 1024f))
+                                            Toast.makeText(context, "Freed $freedMb cache space!", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    enabled = !isCleaningCache
+                                ) {
+                                    Text(if (isCleaningCache) "Cleaning..." else "Clean Cache")
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            val pdfMb = stats.pdfSizeBytes / (1024f * 1024f)
+                            val cacheMb = stats.cacheSizeBytes / (1024f * 1024f)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "PDF Library (${stats.pdfCount} files): ${String.format(Locale.US, "%.1f MB", pdfMb)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "Temp Cache: ${String.format(Locale.US, "%.1f MB", cacheMb)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -430,7 +509,7 @@ fun HomeScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp),
+                            .padding(vertical = 8.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
@@ -439,23 +518,23 @@ fun HomeScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(32.dp),
+                                .padding(28.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.PictureAsPdf,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(44.dp)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                             Text(
                                 text = "No PDFs Generated Yet",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Selected images and converted documents will appear here.",
+                                text = "Select photos or scan a document to create your first PDF.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                             )
@@ -466,9 +545,8 @@ fun HomeScreen(
                 items(recentPdfs.take(5), key = { it.id }) { pdf ->
                     RecentPdfCard(
                         pdf = pdf,
-                        onOpen = {
-                            viewModel.selectPreviewPdf(pdf)
-                        },
+                        onOpen = { viewModel.selectPreviewPdf(pdf) },
+                        onToggleFavorite = { viewModel.toggleFavoriteHistory(pdf.id) },
                         onShare = {
                             context.startActivity(
                                 android.content.Intent.createChooser(
@@ -489,49 +567,10 @@ fun HomeScreen(
 }
 
 @Composable
-fun FeatureChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun RecentPdfCard(
     pdf: GeneratedPdfFile,
     onOpen: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onShare: () -> Unit
 ) {
     val dateStr = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault()).format(Date(pdf.timestamp))
@@ -549,7 +588,7 @@ fun RecentPdfCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -567,7 +606,7 @@ fun RecentPdfCard(
                 )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -581,6 +620,14 @@ fun RecentPdfCard(
                     text = "${pdf.pageCount} pages • ${pdf.formattedSize} • $dateStr",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    imageVector = if (pdf.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                    contentDescription = "Favorite",
+                    tint = if (pdf.isFavorite) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

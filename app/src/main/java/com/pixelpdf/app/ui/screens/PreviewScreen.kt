@@ -11,10 +11,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.pixelpdf.app.data.model.GeneratedPdfFile
 import com.pixelpdf.app.ui.viewmodel.MainViewModel
 import com.pixelpdf.app.ui.viewmodel.Screen
+import com.pixelpdf.app.util.PrintHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -57,21 +60,19 @@ fun PreviewScreen(
         return
     }
 
-    // Export launcher to save to user's chosen location on device
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destUri: Uri? ->
         if (destUri != null) {
             val success = viewModel.exportToDestination(pdfFile, destUri)
             if (success) {
-                Toast.makeText(context, "PDF saved successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "PDF saved successfully to device!", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(context, "Failed to save PDF", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    // Render PDF pages on-device using Android PdfRenderer
     var renderedPages by remember(pdfFile.filePath) { mutableStateOf<List<Bitmap>>(emptyList()) }
     var selectedPageIndex by remember { mutableStateOf(0) }
     var isLoadingPages by remember { mutableStateOf(true) }
@@ -88,7 +89,6 @@ fun PreviewScreen(
                             val count = renderer.pageCount
                             for (i in 0 until count) {
                                 val page = renderer.openPage(i)
-                                // Render thumbnail
                                 val width = 720
                                 val height = (width * (page.height.toFloat() / page.width)).toInt()
                                 val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -108,41 +108,49 @@ fun PreviewScreen(
         isLoadingPages = false
     }
 
-    val dateStr = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault()).format(Date(pdfFile.timestamp))
+    val dateStr = SimpleDateFormat("MMMM d, yyyy • h:mm a", Locale.getDefault()).format(Date(pdfFile.timestamp))
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "PDF Preview",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
+                    Column {
+                        Text(
+                            text = pdfFile.name,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "${pdfFile.pageCount} pages • ${pdfFile.formattedSize}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.navigateTo(Screen.Home) }) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Home")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            context.startActivity(
-                                android.content.Intent.createChooser(
-                                    viewModel.getShareIntent(pdfFile),
-                                    "Share PDF"
-                                )
-                            )
-                        }
-                    ) {
-                        Icon(imageVector = Icons.Outlined.Share, contentDescription = "Share")
+                    IconButton(onClick = { viewModel.toggleFavoriteHistory(pdfFile.id) }) {
+                        Icon(
+                            imageVector = if (pdfFile.isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                            contentDescription = "Favorite",
+                            tint = if (pdfFile.isFavorite) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     IconButton(
                         onClick = {
-                            exportLauncher.launch(pdfFile.name)
+                            try {
+                                context.startActivity(viewModel.getOpenIntent(pdfFile))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No PDF viewer app installed", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     ) {
-                        Icon(imageVector = Icons.Outlined.SaveAlt, contentDescription = "Export")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "Open in PDF App")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -159,40 +167,42 @@ fun PreviewScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedButton(
-                        onClick = { exportLauncher.launch(pdfFile.name) },
+                        onClick = {
+                            context.startActivity(
+                                android.content.Intent.createChooser(
+                                    viewModel.getShareIntent(pdfFile),
+                                    "Share PDF via"
+                                )
+                            )
+                        },
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(imageVector = Icons.Outlined.Download, contentDescription = null)
+                        Icon(imageVector = Icons.Outlined.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Save to Files")
+                        Text("Share")
                     }
 
                     Button(
-                        onClick = {
-                            try {
-                                context.startActivity(viewModel.getOpenIntent(pdfFile))
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "No PDF viewer app found on device", Toast.LENGTH_SHORT).show()
-                            }
-                        },
+                        onClick = { exportLauncher.launch("${pdfFile.name}.pdf") },
                         modifier = Modifier
-                            .weight(1.2f)
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
+                            .weight(1.3f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                        Icon(imageVector = Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Open PDF")
+                        Text("Save to Device")
                     }
                 }
             }
@@ -202,134 +212,122 @@ fun PreviewScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item { Spacer(modifier = Modifier.height(2.dp)) }
 
-            // Metadata Card
+            // Action Quick Row: Print & Email Direct Shortcuts
             item {
-                Card(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    FilledTonalButton(
+                        onClick = {
+                            PrintHelper.printPdf(context, File(pdfFile.filePath), pdfFile.name)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFFFEE2E2)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PictureAsPdf,
-                                contentDescription = null,
-                                tint = Color(0xFFDC2626),
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
+                        Icon(Icons.Outlined.Print, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Print PDF")
+                    }
 
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = pdfFile.name,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Text(
-                                text = "${pdfFile.pageCount} ${if (pdfFile.pageCount == 1) "Page" else "Pages"} • ${pdfFile.formattedSize}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = dateStr,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                    FilledTonalButton(
+                        onClick = {
+                            try {
+                                context.startActivity(viewModel.getEmailIntent(pdfFile))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No email app found", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Outlined.Email, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Send Email")
                     }
                 }
             }
 
-            // PDF Live Page Preview
+            // PDF Multi-Page Interactive Preview Canvas (UI Change 5)
             item {
-                if (isLoadingPages) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(380.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else if (renderedPages.isNotEmpty()) {
-                    val currentBitmap = renderedPages.getOrNull(selectedPageIndex)
-                    if (currentBitmap != null) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight(),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(380.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                    )
+                ) {
+                    if (isLoadingPages) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (renderedPages.isNotEmpty()) {
+                        val currentBitmap = renderedPages.getOrNull(selectedPageIndex)
+                        if (currentBitmap != null) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Image(
                                     bitmap = currentBitmap.asImageBitmap(),
                                     contentDescription = "Page ${selectedPageIndex + 1}",
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .wrapContentHeight()
+                                        .fillMaxSize()
+                                        .padding(12.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Page ${selectedPageIndex + 1} of ${renderedPages.size}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.DarkGray
-                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 14.dp)
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(Color.Black.copy(alpha = 0.65f))
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "Page ${selectedPageIndex + 1} of ${renderedPages.size}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = Color.White
+                                    )
+                                }
                             }
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Page preview unavailable", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
 
-            // Page Selector Strip (if multi-page)
+            // Page Selector Carousel Thumbnails
             if (renderedPages.size > 1) {
                 item {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "Jump to Page:",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            itemsIndexed(renderedPages) { idx, _ ->
-                                FilterChip(
-                                    selected = selectedPageIndex == idx,
-                                    onClick = { selectedPageIndex = idx },
-                                    label = { Text("Page ${idx + 1}") }
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(renderedPages) { idx, bmp ->
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 54.dp, height = 72.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = if (selectedPageIndex == idx) 2.5.dp else 1.dp,
+                                        color = if (selectedPageIndex == idx) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { selectedPageIndex = idx }
+                            ) {
+                                Image(
+                                    bitmap = bmp.asImageBitmap(),
+                                    contentDescription = "Thumbnail $idx",
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         }
@@ -337,7 +335,48 @@ fun PreviewScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(24.dp)) }
+            // Technical Specifications Card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Document Properties",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Pages", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${pdfFile.pageCount}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("File Size", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(pdfFile.formattedSize, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Creation Date", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(dateStr, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Storage Location", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Internal App Storage", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                    }
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }

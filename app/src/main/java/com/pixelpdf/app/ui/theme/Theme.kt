@@ -14,16 +14,17 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.pixelpdf.app.data.model.AppThemeColor
 
-private val LightColorScheme = lightColorScheme(
-    primary = IndigoPrimaryLight,
+private fun createLightColorScheme(theme: AppThemeColor) = lightColorScheme(
+    primary = theme.primaryColor,
     onPrimary = IndigoOnPrimaryLight,
-    primaryContainer = IndigoPrimaryContainerLight,
-    onPrimaryContainer = IndigoOnPrimaryContainerLight,
-    secondary = VioletSecondaryLight,
+    primaryContainer = theme.primaryColor.copy(alpha = 0.15f),
+    onPrimaryContainer = theme.primaryColor,
+    secondary = theme.secondaryColor,
     onSecondary = VioletOnSecondaryLight,
-    secondaryContainer = VioletSecondaryContainerLight,
-    onSecondaryContainer = VioletOnSecondaryContainerLight,
+    secondaryContainer = theme.secondaryColor.copy(alpha = 0.15f),
+    onSecondaryContainer = theme.secondaryColor,
     background = BackgroundLight,
     onBackground = OnSurfaceLight,
     surface = SurfaceLight,
@@ -32,15 +33,15 @@ private val LightColorScheme = lightColorScheme(
     onSurfaceVariant = OnSurfaceVariantLight
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = IndigoPrimaryDark,
+private fun createDarkColorScheme(theme: AppThemeColor) = darkColorScheme(
+    primary = theme.secondaryColor,
     onPrimary = IndigoOnPrimaryDark,
-    primaryContainer = IndigoPrimaryContainerDark,
-    onPrimaryContainer = IndigoOnPrimaryContainerDark,
-    secondary = VioletSecondaryDark,
+    primaryContainer = theme.primaryColor.copy(alpha = 0.35f),
+    onPrimaryContainer = theme.secondaryColor,
+    secondary = theme.primaryColor,
     onSecondary = VioletOnSecondaryDark,
-    secondaryContainer = VioletSecondaryContainerDark,
-    onSecondaryContainer = VioletOnSecondaryContainerDark,
+    secondaryContainer = theme.secondaryColor.copy(alpha = 0.35f),
+    onSecondaryContainer = theme.secondaryColor,
     background = BackgroundDark,
     onBackground = OnSurfaceDark,
     surface = SurfaceDark,
@@ -51,8 +52,9 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun PixelPDFTheme(
+    themeColor: AppThemeColor = AppThemeColor.SAPPHIRE_BLUE,
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Allow custom app theme accents
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -60,8 +62,8 @@ fun PixelPDFTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> createDarkColorScheme(themeColor)
+        else -> createLightColorScheme(themeColor)
     }
 
     val view = LocalView.current
